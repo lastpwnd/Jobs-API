@@ -1,13 +1,22 @@
 const Job = require('../models/Job')
 const { StatusCodes } = require('http-status-codes')
-const { BadRequestError } = require('../errors')
+const { BadRequestError, NotFoundError } = require('../errors')
 
 const getAllJobs = async (req, res) => {
-    res.send("Get All Jobs")
+    const jobs = await Job.find({ createdBy: req.user.userID }).sort('createdAt')
+    res.status(StatusCodes.OK).json({ jobs, count: jobs.length })
 }
 
 const getJob = async (req, res) => {
-    res.send("Get Job")
+    const { user: { userID }, params: { id: jobID } } = req
+
+    //console.log(req.user, req.params)
+
+    const job = await Job.findOne({ _id: jobID, createdBy: userID })
+    if (!job) {
+        throw new NotFoundError(`No job with ID:${jobID}`)
+    }
+    res.status(StatusCodes.OK).json({ job })
 }
 
 const createJob = async (req, res) => {
@@ -17,11 +26,26 @@ const createJob = async (req, res) => {
 }
 
 const updateJob = async (req, res) => {
-    res.send("Update Jobs")
+    const { user: { userID }, params: { id: jobID }, body: { company, position } } = req
+
+    if (company == "" || position == "") {
+        throw new BadRequestError("Empty fields are not allowed")
+    }
+
+    const job = await Job.findOneAndUpdate({ _id: jobID, createdBy: userID }, req.body, { new: true, runValidators: true })
+    if (!job) {
+        throw new NotFoundError(`No job with ID:${jobID}`)
+    }
+    res.status(StatusCodes.OK).json({ job })
 }
 
 const deleteJob = async (req, res) => {
-    res.send("Delete Jobs")
+    const { user: { userID }, params: { id: jobID } } = req
+    const job = await Job.findOneAndDelete({ _id: jobID, createdBy: userID })
+    if (!job) {
+        throw new NotFoundError(`No job with ID:${jobID}`)
+    }
+    res.status(StatusCodes.OK).json({ msg: "The entry was deleted..." })
 }
 
 module.exports = {
